@@ -15,6 +15,7 @@ const simpanDataVitals = async (stringPayload) => {
   try {
     const payload = JSON.parse(stringPayload);
     const { device_id, bpm, spo2 } = payload;
+    if (!bpm || !spo2 || bpm === 0 || spo2 === 0) return;
 
     let statusKondisi = 'Normal';
     if (spo2 < 95) statusKondisi = 'Oksigen Rendah';
