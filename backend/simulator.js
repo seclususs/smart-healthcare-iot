@@ -2,7 +2,6 @@ require('dotenv').config();
 const mqtt = require('mqtt');
 
 const MQTT_BROKER = process.env.MQTT_BROKER_URL;
-const MQTT_TOPIC = process.env.MQTT_TOPIC;
 
 console.log('Menghubungkan ke broker..');
 const client = mqtt.connect(MQTT_BROKER);
@@ -21,14 +20,15 @@ client.on('connect', () => {
     currentBPM = Math.max(50, Math.min(130, currentBPM + bpmChange));
     currentSpO2 = Math.max(85, Math.min(100, currentSpO2 + spo2Change));
 
-    const payload = JSON.stringify({
-      device_id: 'ESP32_SIMULATOR',
-      bpm: currentBPM,
-      spo2: currentSpO2,
+    const bpmPayload = currentBPM.toString();
+    const spo2Payload = currentSpO2.toString();
+
+    client.publish('sensor/bpm', bpmPayload, () => {
+      console.log(`[sensor/bpm]  => ${bpmPayload} BPM`);
     });
 
-    client.publish(MQTT_TOPIC, payload, () => {
-      console.log(`[${MQTT_TOPIC}] => BPM: ${currentBPM} | SpO2: ${currentSpO2}%`);
+    client.publish('sensor/spo2', spo2Payload, () => {
+      console.log(`[sensor/spo2] => ${spo2Payload}%`);
     });
   }, 2000);
 });

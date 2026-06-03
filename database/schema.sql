@@ -5,7 +5,6 @@ DROP TABLE IF EXISTS vitals_monitoring;
 
 CREATE TABLE vitals_monitoring (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    device_id VARCHAR(50) NOT NULL,
     bpm FLOAT NOT NULL,
     spo2 FLOAT NOT NULL,
     status_kondisi VARCHAR(50),

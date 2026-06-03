@@ -26,7 +26,6 @@ export default function Dashboard() {
     <main className="min-h-screen bg-grid-pattern p-6 lg:p-12 font-mono">
       {/* NUMERIK */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-
         {/* Detak Jantung (BPM) */}
         <div className="bg-[#0f172a] border-2 border-slate-800 p-6 flex flex-col items-center relative">
           <div
@@ -74,7 +73,6 @@ export default function Dashboard() {
 
       {/* Visualisasi Grafik */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
         {/* Grafik Gelombang BPM */}
         <div className="bg-[#0f172a] border-2 border-slate-800 p-6">
           <div className="flex justify-between items-end mb-4 border-b border-slate-800 pb-2">
