@@ -1,92 +1,161 @@
 'use client';
+
 import { useState, useEffect, useRef } from 'react';
 import mqtt from 'mqtt';
 
 export function useDataSensor() {
   const [dataGrafik, setDataGrafik] = useState([]);
-  const [dataSaatIni, setDataSaatIni] = useState({ bpm: 0, spo2: 0 });
+  const [dataSaatIni, setDataSaatIni] = useState({
+    bpm: 0,
+    spo2: 0,
+  });
+
   const [statusKoneksi, setStatusKoneksi] = useState(false);
-  const bufferBpm = useRef(null);
+
+  const bpmBuffer = useRef(null);
 
   useEffect(() => {
     const ambilRiwayat = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vitals`);
-        const history = await res.json();
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/vitals`
+        );
 
-        const formattedHistory = history.reverse().map((item) => ({
-          waktu: new Date(item.created_at).toLocaleTimeString('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          }),
-          bpm: item.bpm,
-          spo2: item.spo2,
-        }));
+        const history = await response.json();
 
-        setDataGrafik(formattedHistory);
+        const formatted = history
+          .reverse()
+          .slice(-30)
+          .map((item) => ({
+            waktu: new Date(
+              item.created_at
+            ).toLocaleTimeString('id-ID', {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
 
-        if (formattedHistory.length > 0) {
-          const lastData = formattedHistory[formattedHistory.length - 1];
-          setDataSaatIni({ bpm: lastData.bpm, spo2: lastData.spo2 });
+            bpm: Number(item.bpm),
+            spo2: Number(item.spo2),
+          }));
+
+        setDataGrafik(formatted);
+
+        if (formatted.length > 0) {
+          const last =
+            formatted[formatted.length - 1];
+
+          setDataSaatIni({
+            bpm: last.bpm,
+            spo2: last.spo2,
+          });
         }
-      } catch (error) {
-        console.error('Gagal mengambil riwayat API:', error);
+      } catch (err) {
+        console.error(
+          'Gagal mengambil riwayat:',
+          err
+        );
       }
     };
 
     ambilRiwayat();
 
-    const brokerUrl = process.env.NEXT_PUBLIC_MQTT_BROKER_URL;
+    const brokerUrl =
+      process.env.NEXT_PUBLIC_MQTT_BROKER_URL;
+
     if (!brokerUrl) return;
 
-    const client = mqtt.connect(brokerUrl);
+    const client = mqtt.connect(brokerUrl, {
+      reconnectPeriod: 3000,
+      connectTimeout: 10000,
+      clean: true,
+    });
 
     client.on('connect', () => {
+      console.log('MQTT Connected');
+
       setStatusKoneksi(true);
-      client.subscribe(['sensor/bpm', 'sensor/spo2']);
+
+      client.subscribe([
+        'sensor/bpm',
+        'sensor/spo2',
+      ]);
     });
 
-    client.on('offline', () => setStatusKoneksi(false));
-    client.on('close', () => setStatusKoneksi(false));
-    client.on('error', () => setStatusKoneksi(false));
+    client.on('offline', () => {
+      setStatusKoneksi(false);
+    });
 
-    client.on('message', (topic, message) => {
-      const value = parseFloat(message.toString());
-      if (isNaN(value) || value === 0) return;
+    client.on('close', () => {
+      setStatusKoneksi(false);
+    });
 
-      const timestamp = new Date().toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
+    client.on('error', (err) => {
+      console.error(err);
+      setStatusKoneksi(false);
+    });
 
-      if (topic === 'sensor/bpm') {
-        bufferBpm.current = value;
-        setDataSaatIni((prev) => ({ ...prev, bpm: value }));
-      } else if (topic === 'sensor/spo2') {
-        setDataSaatIni((prev) => ({ ...prev, spo2: value }));
+    client.on(
+      'message',
+      (topic, message) => {
+        const value = parseFloat(
+          message.toString()
+        );
 
-        setDataGrafik((prevData) => {
-          const lastBpm = prevData.length > 0 ? prevData[prevData.length - 1].bpm : 0;
+        if (isNaN(value)) return;
 
-          const newPoint = {
-            waktu: timestamp,
-            bpm: bufferBpm.current !== null ? bufferBpm.current : lastBpm,
+        const waktu =
+          new Date().toLocaleTimeString(
+            'id-ID',
+            {
+              hour: '2-digit',
+              minute: '2-digit',
+            }
+          );
+
+        if (topic === 'sensor/bpm') {
+          bpmBuffer.current = value;
+
+          setDataSaatIni((prev) => ({
+            ...prev,
+            bpm: value,
+          }));
+        }
+
+        if (topic === 'sensor/spo2') {
+          setDataSaatIni((prev) => ({
+            ...prev,
             spo2: value,
-          };
+          }));
 
-          return [...prevData, newPoint].slice(-20);
-        });
+          setDataGrafik((prev) => {
+            const newPoint = {
+              waktu,
 
-        bufferBpm.current = null;
+              bpm:
+                bpmBuffer.current ??
+                dataSaatIni.bpm,
+
+              spo2: value,
+            };
+
+            return [...prev, newPoint].slice(
+              -30
+            );
+          });
+
+          bpmBuffer.current = null;
+        }
       }
-    });
+    );
 
     return () => {
-      client.end();
+      client.end(true);
     };
   }, []);
 
-  return { dataGrafik, dataSaatIni, statusKoneksi };
+  return {
+    dataGrafik,
+    dataSaatIni,
+    statusKoneksi,
+  };
 }

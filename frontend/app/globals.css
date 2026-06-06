@@ -6,14 +6,14 @@
 }
 
 body {
-  background-color: #0b0f19;
-  color: #e2e8f0;
+  background-color: #59ff00;
+  color: #00ff11;
   font-family: var(--font-sans);
 }
 
 .bg-grid-pattern {
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    linear-gradient(to right, rgba(0, 0, 0, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 0, 0, 0.015) 1px, transparent 1px);
   background-size: 32px 32px;
 }
