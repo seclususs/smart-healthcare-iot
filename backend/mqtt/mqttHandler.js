@@ -7,6 +7,7 @@ class MqttHandler {
     this.topics = ['sensor/bpm', 'sensor/spo2'];
     this.buffer = { bpm: null, spo2: null };
     this.client = null;
+    this.flushTimeout = null;
   }
 
   connect() {
@@ -36,22 +37,30 @@ class MqttHandler {
       this.buffer.bpm = value;
     } else if (topic === 'sensor/spo2') {
       this.buffer.spo2 = value;
+    }
 
-      if (this.buffer.bpm !== null && this.buffer.spo2 !== null) {
-        try {
-          const status = await VitalsService.simpanDataVitals(this.buffer.bpm, this.buffer.spo2);
-          if (status) {
-            console.log(
-              `[DB] Tersimpan: BPM=${this.buffer.bpm}, SpO2=${this.buffer.spo2}%, Status=${status}`
-            );
-          }
-        } catch (error) {
-          console.error('[DB] Gagal menyimpan data:', error.message);
-        } finally {
-          this.buffer.bpm = null;
-          this.buffer.spo2 = null;
+    if (this.flushTimeout) clearTimeout(this.flushTimeout);
+
+    if (this.buffer.bpm !== null && this.buffer.spo2 !== null) {
+      const bpmToSave = this.buffer.bpm;
+      const spo2ToSave = this.buffer.spo2;
+
+      this.buffer.bpm = null;
+      this.buffer.spo2 = null;
+
+      try {
+        const status = await VitalsService.simpanDataVitals(bpmToSave, spo2ToSave);
+        if (status) {
+          console.log(`[DB] Tersimpan: BPM=${bpmToSave}, SpO2=${spo2ToSave}%`);
         }
+      } catch (error) {
+        console.error('[DB] Gagal menyimpan data:', error.message);
       }
+    } else {
+      this.flushTimeout = setTimeout(() => {
+        this.buffer.bpm = null;
+        this.buffer.spo2 = null;
+      }, 1500);
     }
   }
 }

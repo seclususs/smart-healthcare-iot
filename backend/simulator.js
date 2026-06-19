@@ -10,15 +10,30 @@ client.on('connect', () => {
   console.log('Simulator terhubung ke MQTT Broker');
   console.log('Memulai pengiriman data stream.. (Tekan Ctrl+C untuk mematikan)');
 
-  let currentBPM = 75;
-  let currentSpO2 = 97;
+  let currentBPM = 20;
+  let currentSpO2 = 1;
+
+  let isFingerOn = true;
+  let fingerPlacedAt = Date.now();
 
   setInterval(() => {
-    const bpmChange = Math.floor(Math.random() * 7) - 3;
-    const spo2Change = Math.floor(Math.random() * 3) - 1;
+    isFingerOn = !isFingerOn;
+    if (isFingerOn) {
+      fingerPlacedAt = Date.now();
+    }
+  }, 25000);
 
-    currentBPM = Math.max(50, Math.min(130, currentBPM + bpmChange));
-    currentSpO2 = Math.max(85, Math.min(100, currentSpO2 + spo2Change));
+  setInterval(() => {
+    if (!isFingerOn) return;
+
+    const timeSincePlaced = Date.now() - fingerPlacedAt;
+    const isBufferFilled = timeSincePlaced >= 4000;
+
+    const bpmChange = Math.floor(Math.random() * 41) - 20;
+    const spo2Change = Math.floor(Math.random() * 21) - 10;
+
+    currentBPM = Math.max(20, Math.min(225, currentBPM + bpmChange));
+    currentSpO2 = Math.max(1, Math.min(100, currentSpO2 + spo2Change));
 
     const bpmPayload = currentBPM.toString();
     const spo2Payload = currentSpO2.toString();
@@ -27,8 +42,10 @@ client.on('connect', () => {
       console.log(`[sensor/bpm]  => ${bpmPayload} BPM`);
     });
 
-    client.publish('sensor/spo2', spo2Payload, () => {
-      console.log(`[sensor/spo2] => ${spo2Payload}%`);
-    });
-  }, 2000);
+    if (isBufferFilled) {
+      client.publish('sensor/spo2', spo2Payload, () => {
+        console.log(`[sensor/spo2] => ${spo2Payload}%`);
+      });
+    }
+  }, 1000);
 });
